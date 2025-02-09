@@ -20,4 +20,8 @@ class Invoice
 
     #[ORM\Column(type: 'string')]
     public string $currency;
+
+    /*
+     Ajout des getters et setters pour respecter l’encapsulation et éviter d’accéder directement aux propriétés.
+     */
 }

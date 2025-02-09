@@ -15,4 +15,7 @@ class InvoiceRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Invoice::class);
     }
+
+    // On pourrait ajouter ici des méthodes spécifiques pour récupérer ou filtrer des factures,
+    // afin d'éviter de surcharger les services ou les contrôleurs.
 }

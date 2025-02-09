@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-
 namespace App\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
-
+use App\Service\FileExtension;
 
 class InvoiceParser
 {
@@ -17,52 +16,72 @@ class InvoiceParser
         $this->em = $em;
     }
 
-    public function parse(string $fp): void
+    //Analyse un fichier de factures et met à jour les données en base. string $filePath Chemin du fichier JSON.
+    public function parse(string $filePath): void
     {
-        if (str_contains($fp, 'json')) {        //Pour les json
-            $f = file_get_contents($fp);
-            $d = preg_split("/\r\n|\n|\r/", $f);
-            $c = 0;
-            $m = "";
-            $n = "";
-            /** Tant qu'il y a une ligne */
-            while(true){
-                if(isset($d[$c])){
-                    if(str_contains($d[$c], "montant")){
-                    $m = explode(": ", $d[$c])[1];
-                    $m = substr($m, 0, strlen($m) - 1);
-                    }
-                    if(str_contains($d[$c], "nom")){
-                    $n = explode(": ", $d[$c])[1];
-                    $n = substr($n, 0, strlen($n) - 1);
-                    }
-                    if(str_contains($d[$c], "}")){
-                        $this->em->getConnection()->executeStatement(
-                "UPDATE invoice SET amount = {$m} WHERE name = '{$n}'"
-                    );
-                    }
-                    $c++;
-                }else{
-                break;
-                }
-            }
-        } elseif (str_contains($fp, 'csv')) {   //Pour les json
-
-
-            $d = array_map(function($r) {
-                return str_getcsv($r, "\t");
-            }, file($fp));
-            $c = 0;
-                while(true){
-                if(isset($d[$c])){
-                    $this->em->getConnection()->executeStatement(
-                        "UPDATE invoice SET amount = {$d[$c][0]} WHERE name = '{$d[$c][2]}'"
-                    );
-                    $c++;
-                }else{
-                    break;
-                }
-                }
+        // Vérifie si le fichier a une extension supportée avant de le traiter.
+        if (!FileExtension::isSupported($filePath)) {
+            throw new \InvalidArgumentException("Extension de fichier non prise en charge.");
         }
+
+        // Détermine le type de fichier et appelle la méthode de parsing appropriée.
+        if (str_ends_with($filePath, '.json')) {
+            $this->parseJsonFile($filePath);
+        } elseif (str_ends_with($filePath, '.csv')) {
+            $this->parseCsvFile($filePath);
+        }
+    }
+
+    //Analyse un fichier JSON et met à jour les factures.
+    private function parseJsonFile(string $filePath): void
+    {
+        $fileContent = file_get_contents($filePath);
+        $lines = preg_split("/\r\n|\n|\r/", $fileContent);
+
+        $amount = "";
+        $name = "";
+
+        // Parcourt chaque ligne du fichier JSON pour extraire les valeurs nécessaires.
+        foreach ($lines as $line) {
+            if (str_contains($line, '"montant"')) {
+                $amount = $this->extractValue($line);
+            }
+            if (str_contains($line, '"nom"')) {
+                $name = $this->extractValue($line);
+            }
+            // Dès qu'une facture est entièrement lue, on met à jour la base.
+            if (str_contains($line, "}")) {
+                $this->updateInvoice($amount, $name);
+            }
+        }
+    }
+
+    private function parseCsvFile(string $filePath): void
+    {
+        // Charge le fichier CSV et transforme chaque ligne en tableau.
+        $data = array_map(fn($row) => str_getcsv($row, "\t", '"', "\\"), file($filePath));
+
+        // Parcourt chaque ligne du fichier et met à jour la base de données.
+        foreach ($data as $row) {
+            if (!empty($row[0]) && !empty($row[2])) {
+                $this->updateInvoice($row[0], $row[2]);
+            }
+        }
+    }
+
+    //Extrait la valeur d'une ligne JSON au format "clé: valeur".
+    private function extractValue(string $line): string
+    {
+        $parts = explode(": ", $line, 2);
+        return isset($parts[1]) ? trim($parts[1], ",\" ") : "";
+    }
+
+    // Met à jour une facture dans la base de données.
+    private function updateInvoice(string $amount, string $name): void
+    {
+        $this->em->getConnection()->executeStatement(
+            "UPDATE invoice SET amount = :amount WHERE name = :name",
+            ['amount' => $amount, 'name' => $name]
+        );
     }
 }

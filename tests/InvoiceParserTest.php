@@ -11,9 +11,12 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class InvoiceParserTest extends KernelTestCase
 {
+    //Ici on ajouté un commentaire PHPDoc avant la déclaration de la propriété $entityManager pour indiquer qu'elle est une instance de EntityManagerInterface:
+
+    /** @var EntityManagerInterface&\PHPUnit\Framework\MockObject\MockObject */
     private $entityManager;
 
-    public function testParseJson(): void
+    public function testParseJsonFile(): void
     {
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
@@ -27,7 +30,7 @@ class InvoiceParserTest extends KernelTestCase
         $invoiceParser->parse('data/invoices.json');
     }
 
-    public function testParseCsv(): void
+    public function testParseCsvFile(): void
     {
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
 
@@ -40,6 +43,4 @@ class InvoiceParserTest extends KernelTestCase
 
         $invoiceParser->parse('data/invoices.csv');
     }
-
 }
-

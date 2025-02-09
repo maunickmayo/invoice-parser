@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace App\Command;
 
 use App\Service\InvoiceParser;
@@ -22,10 +21,21 @@ class ParseInvoicesCommand extends Command
         $this->parser = $parser;
     }
 
+    // Exécute la commande pour parser les fichiers de factures.
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->parser->parse('data/invoices.json');
-        $this->parser->parse('data/invoices.csv');
-        return Command::SUCCESS;
+        try {
+            // Lancer le parsing des fichiers JSON et CSV situés dans le dossier data/.
+            $this->parser->parse('data/invoices.json');
+            $this->parser->parse('data/invoices.csv');
+
+            // Affiche un message de succès dans la console.
+            $output->writeln('Fichiers traités avec succès !');
+            return Command::SUCCESS;
+        } catch (\InvalidArgumentException $e) {
+            // Capture et affiche les erreurs si le fichier n'est pas supporté.
+            $output->writeln('<error>' . $e->getMessage() . '</error>');
+            return Command::FAILURE;
+        }
     }
 }
